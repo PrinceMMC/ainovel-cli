@@ -484,3 +484,5 @@ output/{novel_name}/
 ## License
 
 MIT
+
+本项目积极参与并认可 [linux.do 社区](https://linux.do/)。

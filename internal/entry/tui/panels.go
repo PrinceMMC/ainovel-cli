@@ -101,9 +101,27 @@ func renderTopBar(snap host.UISnapshot, width int, spinnerFrame string) string {
 		Render(content)
 }
 
-// renderStatePanel 渲染左侧状态面板。
-func renderStatePanel(snap host.UISnapshot, width, height int) string {
-	contentW := max(12, width-4)
+// renderStatePanel 把状态侧栏内容(已在 stateVP 中)包进左侧带右边框的盒子。
+// 与 renderDetailPanel 对称：内容由 renderStateContent 生成并喂进 viewport，这里只负责框。
+// MaxHeight 钳高，防止窗口缩小时溢出比右栏高（见 panels_test.go 的高度契约）。
+func renderStatePanel(vp viewport.Model, width, height int, focused bool) string {
+	borderColor := colorDim
+	if focused {
+		borderColor = colorAccent
+	}
+	style := lipgloss.NewStyle().
+		Width(width).
+		Height(height).
+		MaxHeight(height).
+		Border(baseBorder, false, true, false, false).
+		BorderForeground(borderColor).
+		Padding(1, 1)
+	return style.Render(vp.View())
+}
+
+// renderStateContent 生成状态侧栏的纯内容(不含边框/外框)，供 stateVP.SetContent 使用。
+func renderStateContent(snap host.UISnapshot, contentW int) string {
+	contentW = max(12, contentW)
 	agents := sidebarAgents(snap.Agents)
 	tasks := sidebarTasks(snap.Tasks)
 	idleAgents := sidebarIdleAgents(snap.Agents)
@@ -199,14 +217,7 @@ func renderStatePanel(snap host.UISnapshot, width, height int) string {
 		sections = append(sections, renderSidebarSection("任务队列", taskBody.String(), contentW))
 	}
 
-	style := lipgloss.NewStyle().
-		Width(width).
-		Height(height).
-		Border(baseBorder, false, true, false, false).
-		BorderForeground(colorDim).
-		Padding(1, 1)
-
-	return style.Render(strings.Join(sections, "\n\n"))
+	return strings.Join(sections, "\n\n")
 }
 
 func renderAgentLine(agent host.AgentSnapshot, width int) string {
@@ -1763,6 +1774,7 @@ func renderDetailPanel(vp viewport.Model, width, height int, focused bool) strin
 	style := lipgloss.NewStyle().
 		Width(width).
 		Height(height).
+		MaxHeight(height).
 		Border(baseBorder, false, false, false, true).
 		BorderForeground(borderColor).
 		Padding(0, 1)

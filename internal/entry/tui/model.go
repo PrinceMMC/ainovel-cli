@@ -29,6 +29,9 @@ const (
 	focusEvents focusPane = iota
 	focusStream
 	focusDetail
+	focusState // 左侧状态侧栏（可滚动）
+
+	focusPaneCount // 焦点总数，Tab 轮转用
 )
 
 type appMode int
@@ -67,6 +70,7 @@ type Model struct {
 	viewport       viewport.Model   // 事件流 viewport
 	streamVP       viewport.Model   // 流式输出 viewport
 	detailVP       viewport.Model   // 右侧详情 viewport
+	stateVP        viewport.Model   // 左侧状态侧栏 viewport（可滚动）
 	streamBuf      *strings.Builder // 流式文本累积缓冲
 	streamRounds   []string
 	textarea       textarea.Model
@@ -121,6 +125,9 @@ func NewModel(rt *host.Host, bridge *askUserBridge) Model {
 	dvp := viewport.New(40, 20)
 	dvp.SetContent("")
 
+	stvp := viewport.New(32, 20)
+	stvp.SetContent("")
+
 	return Model{
 		runtime:      rt,
 		askBridge:    bridge,
@@ -132,6 +139,7 @@ func NewModel(rt *host.Host, bridge *askUserBridge) Model {
 		viewport:     vp,
 		streamVP:     svp,
 		detailVP:     dvp,
+		stateVP:      stvp,
 		streamBuf:    &strings.Builder{},
 		eventIndex:   make(map[string]int),
 	}
@@ -178,7 +186,7 @@ func (m *Model) paneAtMouse(x, y int) (focusPane, bool) {
 		return focusDetail, true
 	}
 	if x < centerStartX {
-		return focusEvents, true
+		return focusState, true
 	}
 
 	eventH, _ := m.splitHeights(bodyH)
@@ -251,6 +259,16 @@ func (m *Model) refreshDetailViewport() {
 	m.detailVP.SetContent(renderDetailContent(m.snapshot, rightW-4))
 }
 
+// refreshStateViewport 把左侧状态侧栏内容刷进 viewport。
+// 侧栏内容纯由 snapshot 派生，故快照或尺寸变化时都要重刷。
+func (m *Model) refreshStateViewport() {
+	leftW := m.sidebarWidth()
+	if leftW <= 4 {
+		return
+	}
+	m.stateVP.SetContent(renderStateContent(m.snapshot, leftW-4))
+}
+
 // updateViewportSize 根据当前窗口尺寸更新 viewport 大小。
 func (m *Model) updateViewportSize() {
 	centerW := m.eventFlowWidth()
@@ -263,6 +281,9 @@ func (m *Model) updateViewportSize() {
 	m.streamVP.Height = streamH - 1 // -1 为 stream panel header 行
 	m.detailVP.Width = rightW - 2
 	m.detailVP.Height = bodyH
+	leftW := m.sidebarWidth()
+	m.stateVP.Width = max(1, leftW-2)
+	m.stateVP.Height = max(1, bodyH-2) // -2 为状态栏 Padding(1,1) 的上下留白
 }
 
 // splitHeights 计算事件流和流式输出的高度分配。
@@ -585,7 +606,7 @@ func (m Model) View() string {
 		streamPanel := renderStreamPanel(m.streamVP, centerW, streamH, m.paneHighlighted(focusStream), m.snapshot.IsRunning, m.spinnerIdx)
 		center := lipgloss.JoinVertical(lipgloss.Left, eventFlow, streamPanel)
 
-		left := renderStatePanel(m.snapshot, leftW, bodyH)
+		left := renderStatePanel(m.stateVP, leftW, bodyH, m.paneHighlighted(focusState))
 		right := renderDetailPanel(m.detailVP, rightW, bodyH, m.paneHighlighted(focusDetail))
 		body = lipgloss.JoinHorizontal(lipgloss.Top, left, center, right)
 	}

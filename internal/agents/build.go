@@ -184,7 +184,7 @@ func BuildCoordinator(
 		Model:              writerModel,
 		SystemPrompt:       writerPrompt,
 		Tools:              writerTools,
-		MaxTurns:           20,
+		MaxTurns:           30,
 		MaxRetries:         subagentMaxRetries,
 		ToolsAreIdempotent: true,
 		StopAfterTools:     []string{"commit_chapter"},
@@ -278,4 +278,3 @@ func decodeSaveFoundationResult(toolName string, result json.RawMessage) saveFou
 	_ = json.Unmarshal(result, &r)
 	return r
 }
-

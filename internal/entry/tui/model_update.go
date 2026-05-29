@@ -20,6 +20,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.resizeTextarea()
 		m.updateViewportSize()
 		m.refreshDetailViewport()
+		m.refreshStateViewport()
 		return m, nil
 	case tea.KeyMsg:
 		return m.handleKeyMsg(msg)
@@ -185,7 +186,7 @@ func (m Model) handleBaseKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.textarea.Placeholder = placeholderForNewMode(m.startupMode)
 			return m, nil
 		}
-		m.focusPane = (m.focusPane + 1) % 3
+		m.focusPane = (m.focusPane + 1) % focusPaneCount
 		return m, nil
 	case tea.KeyEnter:
 		// Alt+Enter 是主动换行，让 textarea.Update 接管（KeyMap.InsertNewline 已绑到此键）。
@@ -225,12 +226,15 @@ func (m Model) handleBaseKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyPgDown:
 		return m.handleVerticalScrollKey(msg, false)
 	case tea.KeyEnd:
-		if m.focusPane == focusStream {
+		switch m.focusPane {
+		case focusStream:
 			m.streamScroll = true
 			m.streamVP.GotoBottom()
-		} else if m.focusPane == focusDetail {
+		case focusDetail:
 			m.detailVP.GotoBottom()
-		} else {
+		case focusState:
+			m.stateVP.GotoBottom()
+		default:
 			m.autoScroll = true
 			m.viewport.GotoBottom()
 		}
@@ -315,6 +319,11 @@ func (m Model) handleVerticalScrollKey(msg tea.KeyMsg, upward bool) (tea.Model, 
 		m.detailVP, cmd = m.detailVP.Update(msg)
 		return m, cmd
 	}
+	if m.focusPane == focusState {
+		var cmd tea.Cmd
+		m.stateVP, cmd = m.stateVP.Update(msg)
+		return m, cmd
+	}
 	if upward {
 		m.autoScroll = false
 	}
@@ -368,6 +377,10 @@ func (m Model) handleMouseMsg(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		m.detailVP, cmd = m.detailVP.Update(msg)
 		return m, cmd
 	}
+	if m.focusPane == focusState {
+		m.stateVP, cmd = m.stateVP.Update(msg)
+		return m, cmd
+	}
 	m.viewport, cmd = m.viewport.Update(msg)
 	if msg.Action == tea.MouseActionPress {
 		m.autoScroll = m.viewport.AtBottom()
@@ -408,11 +421,13 @@ func (m Model) handleRuntimeMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		m.refreshEventViewport()
 		m.refreshStreamViewport()
 		m.refreshDetailViewport()
+		m.refreshStateViewport()
 		return m, tickSnapshot(m.runtime), true
 	case doneMsg:
 		m.snapshot.IsRunning = false
 		m.refreshEventViewport()
 		m.refreshStreamViewport()
+		m.refreshStateViewport()
 		if msg.complete {
 			m.abortPending = false
 			m.mode = modeDone
