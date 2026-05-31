@@ -35,6 +35,8 @@ var providerMap = map[string]string{
 	"meta-llama": "meta-llama",
 	"mistralai":  "mistral",
 	"moonshotai": "moonshot",
+	"xiaomi":     "mimo",
+	"minimax":    "minimax",
 }
 
 type openRouterResponse struct {

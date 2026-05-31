@@ -104,8 +104,8 @@ func mergeConfig(base, overlay Config) Config {
 	if overlay.Style != "" {
 		base.Style = overlay.Style
 	}
-	if overlay.CompactWindow > 0 {
-		base.CompactWindow = overlay.CompactWindow
+	if overlay.ContextWindow > 0 {
+		base.ContextWindow = overlay.ContextWindow
 	}
 
 	// Providers: overlay 的 key 覆盖 base 同名 key
