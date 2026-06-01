@@ -6,7 +6,11 @@ import (
 	"strings"
 )
 
-const SimulationProfileVersion = "simulation_profile.v1"
+const (
+	SimulationProfileVersion        = "simulation_profile.v1"
+	maxCompactSimulationSourceFiles = 20
+	maxCompactSimulationItems       = 12
+)
 
 type SimulationProfile struct {
 	Version       string                   `json:"version"`
@@ -165,26 +169,90 @@ func CompactSimulationProfile(p *SimulationProfile) *SimulationCompactProfile {
 		return nil
 	}
 	limit := len(p.Corpus.Sources)
-	if limit > 20 {
-		limit = 20
+	if limit > maxCompactSimulationSourceFiles {
+		limit = maxCompactSimulationSourceFiles
 	}
 	files := make([]string, 0, limit)
 	for i := 0; i < limit; i++ {
 		files = append(files, p.Corpus.Sources[i].RelativePath)
 	}
+	synthesis := compactSimulationSynthesis(p.Synthesis)
 	return &SimulationCompactProfile{
 		Version:          p.Version,
 		UpdatedAt:        p.UpdatedAt,
 		SourceCount:      len(p.Corpus.Sources),
 		SourceFiles:      files,
-		Style:            p.Synthesis.Style,
-		Lexicon:          p.Synthesis.Lexicon,
-		PlotDesign:       p.Synthesis.PlotDesign,
-		HookDesign:       p.Synthesis.HookDesign,
-		PacingDensity:    p.Synthesis.PacingDensity,
-		ReaderEngagement: p.Synthesis.ReaderEngagement,
-		RoleGuidance:     p.Synthesis.RoleGuidance,
+		Style:            synthesis.Style,
+		Lexicon:          synthesis.Lexicon,
+		PlotDesign:       synthesis.PlotDesign,
+		HookDesign:       synthesis.HookDesign,
+		PacingDensity:    synthesis.PacingDensity,
+		ReaderEngagement: synthesis.ReaderEngagement,
+		RoleGuidance:     synthesis.RoleGuidance,
 	}
+}
+
+func compactSimulationSynthesis(s SimulationSynthesis) SimulationSynthesis {
+	return SimulationSynthesis{
+		Style: SimulationStyle{
+			NarrativeVoice: compactSimulationItems(s.Style.NarrativeVoice),
+			SentenceRhythm: compactSimulationItems(s.Style.SentenceRhythm),
+			ProseTexture:   compactSimulationItems(s.Style.ProseTexture),
+			Perspective:    compactSimulationItems(s.Style.Perspective),
+			Mood:           compactSimulationItems(s.Style.Mood),
+			DoNotCopy:      compactSimulationItems(s.Style.DoNotCopy),
+		},
+		Lexicon: SimulationLexicon{
+			CommonWords:      compactSimulationItems(s.Lexicon.CommonWords),
+			EmotionWords:     compactSimulationItems(s.Lexicon.EmotionWords),
+			SceneWords:       compactSimulationItems(s.Lexicon.SceneWords),
+			TransitionWords:  compactSimulationItems(s.Lexicon.TransitionWords),
+			SignaturePhrases: compactSimulationItems(s.Lexicon.SignaturePhrases),
+		},
+		PlotDesign: SimulationPlotDesign{
+			OpeningPatterns:      compactSimulationItems(s.PlotDesign.OpeningPatterns),
+			EscalationPatterns:   compactSimulationItems(s.PlotDesign.EscalationPatterns),
+			TurningPointPatterns: compactSimulationItems(s.PlotDesign.TurningPointPatterns),
+			PayoffPatterns:       compactSimulationItems(s.PlotDesign.PayoffPatterns),
+		},
+		HookDesign: SimulationHookDesign{
+			HookTypes:           compactSimulationItems(s.HookDesign.HookTypes),
+			Placement:           compactSimulationItems(s.HookDesign.Placement),
+			CliffhangerPatterns: compactSimulationItems(s.HookDesign.CliffhangerPatterns),
+			PayoffRules:         compactSimulationItems(s.HookDesign.PayoffRules),
+		},
+		PacingDensity: SimulationPacingDensity{
+			SceneDensity:        compactSimulationItems(s.PacingDensity.SceneDensity),
+			InformationRelease:  compactSimulationItems(s.PacingDensity.InformationRelease),
+			DialogueActionRatio: compactSimulationItems(s.PacingDensity.DialogueActionRatio),
+			CompressionRules:    compactSimulationItems(s.PacingDensity.CompressionRules),
+		},
+		ReaderEngagement: SimulationReaderEngagement{
+			Methods:            compactSimulationItems(s.ReaderEngagement.Methods),
+			EmotionalDrivers:   compactSimulationItems(s.ReaderEngagement.EmotionalDrivers),
+			ProgressionRewards: compactSimulationItems(s.ReaderEngagement.ProgressionRewards),
+			AntiPatterns:       compactSimulationItems(s.ReaderEngagement.AntiPatterns),
+		},
+		RoleGuidance: SimulationRoleGuidance{
+			Coordinator: compactSimulationItems(s.RoleGuidance.Coordinator),
+			Architect:   compactSimulationItems(s.RoleGuidance.Architect),
+			Writer:      compactSimulationItems(s.RoleGuidance.Writer),
+			Editor:      compactSimulationItems(s.RoleGuidance.Editor),
+		},
+	}
+}
+
+func compactSimulationItems(items []string) []string {
+	if len(items) == 0 {
+		return nil
+	}
+	limit := len(items)
+	if limit > maxCompactSimulationItems {
+		limit = maxCompactSimulationItems
+	}
+	out := make([]string, limit)
+	copy(out, items[:limit])
+	return out
 }
 
 func MergeSimulationSynthesis(a, b SimulationSynthesis) SimulationSynthesis {

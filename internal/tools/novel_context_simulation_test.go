@@ -79,21 +79,21 @@ func TestContextToolInjectsCompactSimulationProfile(t *testing.T) {
 
 func assertCompactSimulationProfile(t *testing.T, payload map[string]any, section string) {
 	t.Helper()
-	top, ok := payload["simulation_profile"].(map[string]any)
-	if !ok {
-		t.Fatalf("expected top-level simulation_profile in payload: %+v", payload)
-	}
-	if _, exists := top["source_reports"]; exists {
-		t.Fatal("compact simulation_profile must not include source_reports")
-	}
-	if got := top["source_count"]; got != float64(1) {
-		t.Fatalf("source_count = %v, want 1", got)
+	if got := payload["simulation_profile"]; got != true {
+		t.Fatalf("expected top-level simulation_profile marker, got %#v", got)
 	}
 	sectionMap, ok := payload[section].(map[string]any)
 	if !ok {
 		t.Fatalf("expected %s", section)
 	}
-	if _, ok := sectionMap["simulation_profile"].(map[string]any); !ok {
+	compact, ok := sectionMap["simulation_profile"].(map[string]any)
+	if !ok {
 		t.Fatalf("expected simulation_profile under %s", section)
+	}
+	if _, exists := compact["source_reports"]; exists {
+		t.Fatal("compact simulation_profile must not include source_reports")
+	}
+	if got := compact["source_count"]; got != float64(1) {
+		t.Fatalf("source_count = %v, want 1", got)
 	}
 }

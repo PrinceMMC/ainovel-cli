@@ -149,7 +149,7 @@ func (t *ContextTool) buildSimulationProfile(result map[string]any, sectionKey s
 		result[sectionKey] = section
 	}
 	section["simulation_profile"] = compact
-	result["simulation_profile"] = compact
+	result["simulation_profile"] = true
 }
 
 func (t *ContextTool) buildBaseContext(result map[string]any, warn func(string, error)) {
