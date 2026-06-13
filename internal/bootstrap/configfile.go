@@ -2,9 +2,12 @@ package bootstrap
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 const configDirName = ".ainovel"
@@ -48,15 +51,26 @@ func configDir() (string, error) {
 func LoadConfig(flagPath string) (Config, error) {
 	var cfg Config
 
-	// 1. 全局配置
+	// 1. 全局配置。它是最低优先级基底，坏文件降级为告警而非阻断——可被项目级
+	//    / --config 覆盖；硬失败会把"坏全局 + 有效 --config"的用户挡在门外，
+	//    违反 --config"我明确指定这个"的语义。
 	if p := DefaultConfigPath(); p != "" {
-		if global, err := loadJSONFile(p); err == nil {
+		global, found, err := loadOptionalJSON(p)
+		switch {
+		case err != nil:
+			slog.Warn("全局配置解析失败，已忽略（可被项目级/--config 覆盖）", "module", "config", "path", p, "err", err)
+		case found:
 			cfg = global
 		}
 	}
 
-	// 2. 项目级覆盖
-	if project, err := loadJSONFile("ainovel.json"); err == nil {
+	// 2. 项目级覆盖。坏文件 fail loud：用户在当前目录主动放的配置，静默吞掉会让
+	//    "配了不生效"无从排查（issue #37）。
+	project, found, err := loadOptionalJSON("ainovel.json")
+	if err != nil {
+		return cfg, fmt.Errorf("项目级配置 ./ainovel.json 解析失败（请检查 JSON 语法）: %w", err)
+	}
+	if found {
 		cfg = mergeConfig(cfg, project)
 	}
 
@@ -70,6 +84,21 @@ func LoadConfig(flagPath string) (Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// loadOptionalJSON 读取一个可选的配置文件：
+//   - 文件不存在 → (zero, false, nil)，由调用方决定用默认/上层值
+//   - 文件存在但解析失败 → 返回错误（不再静默吞掉——否则用户的配置"配了不生效"
+//     却无从排查，正是 issue #37 的根因）
+func loadOptionalJSON(path string) (Config, bool, error) {
+	cfg, err := loadJSONFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return Config{}, false, nil
+		}
+		return Config{}, false, err
+	}
+	return cfg, true, nil
 }
 
 // LoadConfigFile 读取单个 JSON 配置文件，支持 // 行注释。
@@ -210,6 +239,29 @@ func stripJSONComments(data []byte) []byte {
 	}
 
 	return out
+}
+
+// WriteStartupError 把启动期致命错误追加写入 ~/.ainovel/last-error.log，并返回
+// 该文件路径（best-effort，失败时返回空字符串）。双击启动时控制台窗口会随进程
+// 退出立即关闭、错误一闪而过，落盘是这类用户事后追溯的唯一途径。
+func WriteStartupError(msg string) string {
+	dir := DefaultConfigDir()
+	if dir == "" {
+		return ""
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return ""
+	}
+	path := filepath.Join(dir, "last-error.log")
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	if _, err := fmt.Fprintf(f, "[%s] %s\n", time.Now().Format(time.RFC3339), msg); err != nil {
+		return ""
+	}
+	return path
 }
 
 // SaveConfig 将配置写入指定路径（JSON 格式，缩进美化）。

@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,12 @@ import (
 	"github.com/voocel/ainovel-cli/internal/rules"
 	"github.com/voocel/ainovel-cli/internal/utils"
 )
+
+// exampleConfig 是引导后写入 ~/.ainovel/config.example.jsonc 的带注释模板。
+// 单一数据源：直接嵌入同目录的 config.example.jsonc，避免与文档样本漂移。
+//
+//go:embed config.example.jsonc
+var exampleConfig string
 
 // NeedsSetup 检查是否需要首次引导（配置文件不存在时触发）。
 func NeedsSetup(flagPath string) bool {
@@ -162,81 +169,7 @@ func saveExampleConfig() {
 	if err != nil {
 		return
 	}
-	example := `{
-  // 默认 provider（指向 providers 中的 key）和模型
-  "provider": "openrouter",
-  "model": "google/gemini-2.5-flash",
-
-  // Provider 凭证库
-  "providers": {
-    "openrouter": {
-      "api_key": "your-key-here",
-      "base_url": "https://openrouter.ai/api/v1",
-      "models": ["google/gemini-2.5-flash", "google/gemini-2.5-pro"]
-    },
-    "anthropic": {
-      "api_key": "",
-      "models": ["claude-sonnet-4"]
-    },
-    "gemini": {
-      "api_key": "",
-      "models": ["gemini-2.5-flash", "gemini-2.5-pro"]
-    },
-    "ollama": {
-      "base_url": "http://localhost:11434/v1",
-      "models": ["qwen3:14b"]
-    },
-    "bedrock": {
-      "base_url": ""
-    }
-    // 自定义 OpenAI 兼容端点示例（自建/网关/厂商如 nvidia）：
-    // "my-proxy": {
-    //   "type": "openrouter",        // 选一个 compat 协议名即可逐字透传 extra_body
-    //   "api_key": "sk-xxx",         // 可选：若端点不需要认证可省略
-    //   "base_url": "https://proxy.example.com/v1",
-    //   // 可选：透传给每次请求的额外参数（采样/厂商特有键，如 nvidia 开 think）
-    //   "extra_body": { "temperature": 0.8, "min_p": 0.05, "chat_template_kwargs": { "enable_thinking": true } }
-    // }
-  },
-
-  // 角色级模型覆盖（可选，不配则全用上面的 model）
-  // "roles": {
-  //   "writer": {
-  //     "provider": "anthropic",
-  //     "model": "claude-sonnet-4",
-  //     "fallbacks": [
-  //       {
-  //         "provider": "openrouter",
-  //         "model": "google/gemini-2.5-pro"
-  //       }
-  //     ]
-  //   },
-  //   "architect": {
-  //     "provider": "openrouter",
-  //     "model": "google/gemini-2.5-pro"
-  //   },
-  //   "editor": {
-  //     "provider": "openrouter",
-  //     "model": "google/gemini-2.5-flash"
-  //   },
-  //   "coordinator": {
-  //     "provider": "openrouter",
-  //     "model": "google/gemini-2.5-flash"
-  //   }
-  // },
-
-  "style": "default"
-
-  // 上下文窗口默认由模型名自动解析（见 ~/.ainovel/models-cache.json，每 24h 从
-  // OpenRouter 刷新）。自定义代理 / 未登记模型兜底为 200k。
-  //
-  // 可选：显式指定上下文压缩使用的窗口。配了就优先用——可给 registry 查不到的
-  // 自定义模型指定真实窗口，或把大窗口模型钉在更小值上提前触发压缩（1M 名义窗口
-  // 在 200k+ 通常已注意力衰退）。仅影响压缩阈值，不改变 LLM API 实际请求长度。
-  // "context_window": 300000
-}
-`
-	_ = os.WriteFile(filepath.Join(dir, "config.example.jsonc"), []byte(example), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "config.example.jsonc"), []byte(exampleConfig), 0o644)
 }
 
 // printStepDone 打印一步完成的确认行。

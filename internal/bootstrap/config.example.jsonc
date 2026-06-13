@@ -1,9 +1,12 @@
 {
-  // 默认 provider/model。运行时 /model 切换不会自动回写这里。
+  // 默认使用的 provider 和 model。
+  // ★ provider 的值是下面 providers 里的一个 key 名（一根“指针”），不是协议名——
+  //   改 provider 必须保证 providers 里有同名条目，否则启动会报“未配置凭证”。
+  //   运行时用 /model 面板切换不会自动回写这里。
   "provider": "openrouter",
   "model": "google/gemini-2.5-flash",
 
-  // Provider 凭证库。key 自定义，用作 provider 字段引用。
+  // Provider 凭证库。key 自定义，用作上面 provider 字段引用的目标。
   // 已知 provider（openai/anthropic/gemini/openrouter/deepseek/qwen/glm/grok/mimo/ollama/bedrock）
   // 可省略 type；自定义代理必须显式声明 type 指明 API 协议。
   "providers": {
@@ -40,6 +43,7 @@
 
   // 可选。按角色覆盖默认模型；未配的角色使用上面的 model。
   // 角色：coordinator / architect / writer / editor。fallbacks 在主模型失败时按序尝试。
+  // 注意：这里的 provider 同样是“指针”，必须指向 providers 里存在的 key。
   // "roles": {
   //   "writer": {
   //     "provider": "anthropic",

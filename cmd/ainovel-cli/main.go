@@ -18,23 +18,24 @@ var (
 	date    = "unknown"
 )
 
+// headlessMode 记录本次是否 headless 启动，供 die 决定错误退出时是否暂停。
+var headlessMode bool
+
 func main() {
 	opts, args, err := parseCLIOptions(os.Args[1:])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "flags: %v\n", err)
-		os.Exit(1)
+		die("flags: %v", err)
 	}
+	headlessMode = opts.Headless
 
 	// 首次引导
 	if bootstrap.NeedsSetup(opts.ConfigPath) {
 		if opts.Headless {
-			fmt.Fprintln(os.Stderr, "error: headless 模式不支持首次引导，请先运行一次 TUI 完成配置")
-			os.Exit(1)
+			die("error: headless 模式不支持首次引导，请先运行一次 TUI 完成配置")
 		}
 		setupCfg, err := bootstrap.RunSetup()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "setup: %v\n", err)
-			os.Exit(1)
+			die("setup: %v", err)
 		}
 		// 引导完成后使用生成的配置继续
 		runWithConfig(setupCfg, opts, args)
@@ -44,41 +45,61 @@ func main() {
 	// 加载配置
 	cfg, err := bootstrap.LoadConfig(opts.ConfigPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "config: %v\n", err)
-		os.Exit(1)
+		die("config: %v", err)
 	}
 
 	runWithConfig(cfg, opts, args)
+}
+
+// die 统一处理致命错误退出：打印到 stderr、落盘到 ~/.ainovel/last-error.log，
+// 并在交互式终端（非 headless）下暂停等待回车——双击启动时控制台会随进程退出
+// 立即关闭，不暂停的话错误一闪而过，正是 issue #37 里用户无从排查的根因。
+func die(format string, args ...any) {
+	msg := fmt.Sprintf(format, args...)
+	fmt.Fprintln(os.Stderr, msg)
+	if path := bootstrap.WriteStartupError(msg); path != "" {
+		fmt.Fprintf(os.Stderr, "（详细错误已记录到 %s）\n", path)
+	}
+	if !headlessMode && stdinIsTerminal() {
+		fmt.Fprint(os.Stderr, "\n按回车键退出...")
+		fmt.Fscanln(os.Stdin)
+	}
+	os.Exit(1)
+}
+
+// stdinIsTerminal 判断标准输入是否连接到终端（字符设备）。双击启动 / 交互式终端
+// 为 true；管道、重定向、CI 为 false。零依赖近似，足够区分要不要暂停。
+func stdinIsTerminal() bool {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice != 0
 }
 
 func runWithConfig(cfg bootstrap.Config, opts cliOptions, args []string) {
 	rules.EnsureHomeRulesDir()
 
 	if len(args) > 0 {
-		fmt.Fprintln(os.Stderr, "error: 不再支持命令行直接传入小说需求，请启动后在 TUI 输入框中输入")
-		os.Exit(1)
+		die("error: 不再支持命令行直接传入小说需求，请启动后在 TUI 输入框中输入")
 	}
 
 	bundle := assets.Load(cfg.Style)
 	if opts.Headless {
 		prompt, err := loadPrompt(opts)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			os.Exit(1)
+			die("error: %v", err)
 		}
 		if err := headless.Run(cfg, bundle, headless.Options{Prompt: prompt}); err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			os.Exit(1)
+			die("error: %v", err)
 		}
 		return
 	}
 	if opts.Prompt != "" || opts.PromptFile != "" {
-		fmt.Fprintln(os.Stderr, "error: --prompt/--prompt-file 仅能在 --headless 模式下使用")
-		os.Exit(1)
+		die("error: --prompt/--prompt-file 仅能在 --headless 模式下使用")
 	}
 	if err := tui.Run(cfg, bundle); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+		die("error: %v", err)
 	}
 }
 

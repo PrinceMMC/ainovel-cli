@@ -59,7 +59,7 @@ func (d *Dispatcher) handle(ev agentcore.Event) {
 		return
 	}
 	// 精确触发点：子代理调用成功返回。
-	// 不用 EventTurnEnd，因为 agentcore 每次 LLM call 完成都会 emit TurnEnd，
+	// 不用 EventModelResponse，因为 agentcore 每次 LLM call 完成都会 emit 它，
 	// 会把同一条指令重复压进 followUpQ；查询类 Steer 由 coordinator.md 约束在
 	// 同一 turn 内继续调 subagent，从而命中这个触发点。
 	if ev.Type != agentcore.EventToolExecEnd || ev.Tool != "subagent" || ev.IsError {
