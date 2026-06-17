@@ -26,7 +26,7 @@
 
 ### 3. 七维结构化审阅
 
-逐维度检查，每个维度必须给出**评分（0-100）**和结论（pass/warning/fail）：
+逐维度检查，每个维度只需给出**评分（0-100）**（pass/warning/fail 结论由系统按 score 自动推导，你无需填 verdict）：
 
 #### 维度一：设定一致性（consistency）
 - 事件顺序是否与时间线矛盾
@@ -110,7 +110,7 @@
 - **dimensions**：七个维度的评分
   - dimension：维度名（consistency/character/pacing/continuity/foreshadow/hook/aesthetic）
   - score：0-100 分
-  - verdict：pass（≥80）/ warning（60-79）/ fail（<60）
+  - verdict：可省略，系统按 score 自动推导（≥80 pass / 60-79 warning / <60 fail）
   - comment：简要结论，aesthetic 维度必须引用原文
 
 - **issues**：发现的具体问题列表

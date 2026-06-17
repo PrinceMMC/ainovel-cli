@@ -246,6 +246,30 @@ func TestParse_ChapterWordsObjectForm(t *testing.T) {
 	}
 }
 
+// TestParse_ChapterWordsSingleValue 验证单值写法（裸数字 / 字符串）展开为 ±20% 区间。
+// 防回归 issue #41：用户凭直觉写单值，过去被静默丢弃、回落内置默认。
+func TestParse_ChapterWordsSingleValue(t *testing.T) {
+	cases := []struct {
+		name             string
+		content          string
+		wantMin, wantMax int
+	}{
+		{"bare int", "---\nchapter_words: 2500\n---\n", 2000, 3000},
+		{"quoted string", "---\nchapter_words: \"2500\"\n---\n", 2000, 3000},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := Parse("inline", SourceProject, []byte(tc.content))
+			if p.Structured.ChapterWords == nil {
+				t.Fatalf("expected ChapterWords to be set, conflicts=%+v", p.Conflicts)
+			}
+			if p.Structured.ChapterWords.Min != tc.wantMin || p.Structured.ChapterWords.Max != tc.wantMax {
+				t.Errorf("got %+v, want {%d, %d}", p.Structured.ChapterWords, tc.wantMin, tc.wantMax)
+			}
+		})
+	}
+}
+
 // TestParse_ChapterWordsInvalidRange 确认 min>max 被视为非法值。
 func TestParse_ChapterWordsInvalidRange(t *testing.T) {
 	content := []byte("---\nchapter_words: 6000-3000\n---\n")

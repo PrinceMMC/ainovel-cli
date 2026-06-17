@@ -127,7 +127,7 @@ func applyField(p *Parsed, key string, val any) {
 				Source: p.Source,
 				Kind:   ConflictInvalidValue,
 				Field:  key,
-				Detail: fmt.Sprintf("chapter_words 期望格式 \"min-max\"（如 3000-6000），收到 %v", val),
+				Detail: fmt.Sprintf("chapter_words 期望区间 \"min-max\"（如 3000-6000）或单个目标值（如 2500），收到 %v", val),
 			})
 			return
 		}
@@ -159,11 +159,22 @@ func applyField(p *Parsed, key string, val any) {
 	}
 }
 
-// parseChapterWords 解析 "min-max" 字符串为 *WordRange；也兼容 map {min, max}。
+// parseChapterWords 解析章节字数范围为 *WordRange，接受三种写法：
+//   - "min-max" 区间字符串（如 "3000-6000"）
+//   - {min, max} 映射
+//   - 单个正整数 N（裸数字 2500 或字符串 "2500"）——按"目标 N 字/章"理解，自动
+//     展开为 N±20% 区间。否则用户凭直觉写单值会被静默丢弃、回落内置默认（issue #41）。
 func parseChapterWords(val any) (*WordRange, bool) {
 	switch v := val.(type) {
 	case string:
-		parts := strings.Split(strings.TrimSpace(v), "-")
+		s := strings.TrimSpace(v)
+		if !strings.Contains(s, "-") { // 单值写法，如 "2500"
+			if n, err := strconv.Atoi(s); err == nil && n > 0 {
+				return wordBandAround(n), true
+			}
+			return nil, false
+		}
+		parts := strings.Split(s, "-")
 		if len(parts) != 2 {
 			return nil, false
 		}
@@ -180,9 +191,18 @@ func parseChapterWords(val any) (*WordRange, bool) {
 			return nil, false
 		}
 		return &WordRange{Min: minV, Max: maxV}, true
-	default:
+	default: // 裸数字，YAML 解析为 int / float64
+		if n, ok := asInt(v); ok && n > 0 {
+			return wordBandAround(n), true
+		}
 		return nil, false
 	}
+}
+
+// wordBandAround 把"目标 N 字/章"展开为 ±20% 的舒适区间（如 2500 → 2000-3000），
+// 让单值写法等价于一个合理区间，而不是 N-N 的硬墙（紧区间会逼出压缩死循环）。
+func wordBandAround(n int) *WordRange {
+	return &WordRange{Min: n * 4 / 5, Max: n * 6 / 5}
 }
 
 // parseFatigueWords 同时接受 map[string]int（带阈值）与 []string（默认阈值 1）。

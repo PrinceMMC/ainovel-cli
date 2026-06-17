@@ -78,7 +78,10 @@ func TestSaveReviewRejectsMissingDimensions(t *testing.T) {
 	}
 }
 
-func TestSaveReviewRejectsInconsistentScoreVerdict(t *testing.T) {
+// TestSaveReviewDerivesVerdictFromScore 验证：verdict 由 score 确定性推导，模型给的
+// 不一致 verdict（如 score=85 却填 warning）不再报错，而是被覆写成正确值（pass）。
+// 防回归 issue：弱模型 score/verdict 打架曾导致 save_review 反复失败。
+func TestSaveReviewDerivesVerdictFromScore(t *testing.T) {
 	s := store.NewStore(t.TempDir())
 	if err := s.Init(); err != nil {
 		t.Fatalf("Init: %v", err)
@@ -89,13 +92,13 @@ func TestSaveReviewRejectsInconsistentScoreVerdict(t *testing.T) {
 		"chapter": 3,
 		"scope":   "chapter",
 		"dimensions": []map[string]any{
-			{"dimension": "consistency", "score": 55, "verdict": "pass", "comment": "不一致"},
-			{"dimension": "character", "score": 82, "verdict": "pass", "comment": "稳定"},
+			{"dimension": "consistency", "score": 85, "verdict": "pass", "comment": "一致"},
+			{"dimension": "character", "score": 82, "comment": "稳定"}, // 省略 verdict
 			{"dimension": "pacing", "score": 78, "verdict": "warning", "comment": "略慢"},
 			{"dimension": "continuity", "score": 84, "verdict": "pass", "comment": "连贯"},
 			{"dimension": "foreshadow", "score": 80, "verdict": "pass", "comment": "正常"},
 			{"dimension": "hook", "score": 76, "verdict": "warning", "comment": "钩子一般"},
-			{"dimension": "aesthetic", "score": 81, "verdict": "pass", "comment": "语言基本成立"},
+			{"dimension": "aesthetic", "score": 85, "verdict": "warning", "comment": "语言成立"}, // 不一致：85 却填 warning
 		},
 		"issues":  []map[string]any{},
 		"verdict": "accept",
@@ -105,8 +108,20 @@ func TestSaveReviewRejectsInconsistentScoreVerdict(t *testing.T) {
 		t.Fatalf("Marshal: %v", err)
 	}
 
-	if _, err := tool.Execute(context.Background(), args); err == nil || !strings.Contains(err.Error(), "inconsistent score/verdict") {
-		t.Fatalf("expected score/verdict validation error, got %v", err)
+	if _, err := tool.Execute(context.Background(), args); err != nil {
+		t.Fatalf("Execute should succeed (verdict auto-derived), got %v", err)
+	}
+
+	review, err := s.World.LoadReview(3)
+	if err != nil || review == nil {
+		t.Fatalf("LoadReview: %v", err)
+	}
+	// 85 → pass（覆写模型给的 warning）；82 省略 → pass。
+	if d := review.Dimension("aesthetic"); d == nil || d.Verdict != "pass" {
+		t.Fatalf("aesthetic verdict should be derived to pass, got %+v", d)
+	}
+	if d := review.Dimension("character"); d == nil || d.Verdict != "pass" {
+		t.Fatalf("character verdict should be derived to pass, got %+v", d)
 	}
 }
 

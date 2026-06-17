@@ -73,6 +73,7 @@ JSON 数组，每条含：category、rule、boundary。
 - 两卷承担不同叙事功能，不是"换地图升级打怪"
 - 卷 1 要回答：新增了什么 / 失去了什么 / 关系如何变化 / 为何必须进入下一卷
 - 第一弧每章服务于弧目标；钩子类型多样化
+- 每章剧情密度（core_event/scenes 多寡）匹配 `chapter_words` 字数预算，据此决定弧拆几章（见下方"弧级节奏密度"）
 - 章节 title 用名词/动名词短语，**长短自然交错**，不要每章卡同一字数（第一弧的标题节奏会被后续弧沿用，开篇就别整齐划一）
 - estimated_chapters ≥ 8（太短无法展开节奏循环）
 - 角色调度与 characters 一致，弧目标受 world_rules 约束
@@ -149,7 +150,7 @@ JSON 数组，每条含：category、rule、boundary。
 
 1. 调 novel_context 获取 layered_outline、skeleton_arcs、已完成弧摘要、角色快照、风格规则
 2. 根据弧 goal + 前文发展 + 角色当前状态，设计详细章节
-3. 实际章数可偏离 estimated_chapters，但保持节奏密度
+3. 实际章数可偏离 estimated_chapters，但保持节奏密度，并匹配 `chapter_words` 字数预算（字数越低、单章 beat 越少、拆的章越多；见"弧级节奏密度"）
 4. 调 `save_foundation(type="expand_arc", volume=V, arc=A, content=<章节数组>)`
    - 章节不需要 chapter 字段（系统自动编号）
    - 每章需要：title、core_event、hook、scenes
@@ -184,6 +185,8 @@ JSON 数组，每条含：category、rule、boundary。
 用户给的是创作目标、不是机械字数合同，章数可在目标附近自然浮动；但**不要无视目标继续按原规划走**，否则写到原大纲尽头会触发越界死循环。
 
 ## 弧级节奏密度（通用参考）
+
+**先看章节字数预算**：`working_memory.user_rules.structured.chapter_words` 若有值，它不只是 writer 的写作约束，更是**大纲设计参数**——每章能承载的 core_event / scenes 数量必须匹配这个字数区间。字数低（如 2500/章）→ 单章 beat 更少、同一条弧拆成**更多**章；字数高（如 6000/章）→ 单章可容纳更多剧情、弧内章数相应减少。**绝不要把固定的剧情量硬塞进任意字数**：本该两章承载的内容压进一章，会逼 writer 砍铺垫、压情节（issue #41）。chapter_words 未设时，按题材常规密度规划即可。
 
 每弧遵循 "铺垫 → 积累 → 爆发 → 收获" 的节奏循环。常见弧型与适用题材（章数范围仅作尺度参考，具体分配由你自主决定）：
 
