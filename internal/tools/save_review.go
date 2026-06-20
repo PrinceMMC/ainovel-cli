@@ -44,7 +44,7 @@ func (t *SaveReviewTool) Schema() map[string]any {
 		schema.Property("dimension", schema.Enum("维度", "consistency", "character", "pacing", "continuity", "foreshadow", "hook", "aesthetic")).Required(),
 		schema.Property("score", schema.Int("评分（0-100）")).Required(),
 		schema.Property("verdict", schema.Enum("维度结论（可省略：系统按 score 自动推导，≥80 pass / ≥60 warning / <60 fail）", "pass", "warning", "fail")),
-		schema.Property("comment", schema.String("该维度的简要结论")),
+		schema.Property("comment", schema.String("该维度的简要结论；每个维度必填，aesthetic 必须引用原文或具体统计事实")).Required(),
 	)
 	return schema.Object(
 		schema.Property("chapter", schema.Int("审阅的章节号（全局审阅填最新章节号）")).Required(),
@@ -223,9 +223,8 @@ func validateDimensions(dimensions []domain.DimensionScore) error {
 		if dim.Score < 0 || dim.Score > 100 {
 			return fmt.Errorf("invalid score for %s: %d", dim.Dimension, dim.Score)
 		}
-		// verdict 已在 Execute 按 score 确定性推导，此处无需再校验一致性。
-		if dim.Dimension == "aesthetic" && strings.TrimSpace(dim.Comment) == "" {
-			return fmt.Errorf("aesthetic comment is required")
+		if strings.TrimSpace(dim.Comment) == "" {
+			return fmt.Errorf("dimension comment is required: %s", dim.Dimension)
 		}
 	}
 	return nil

@@ -78,6 +78,38 @@ func TestSaveReviewRejectsMissingDimensions(t *testing.T) {
 	}
 }
 
+func TestSaveReviewRejectsDimensionWithoutComment(t *testing.T) {
+	s := store.NewStore(t.TempDir())
+	if err := s.Init(); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+
+	tool := NewSaveReviewTool(s)
+	args, err := json.Marshal(map[string]any{
+		"chapter": 3,
+		"scope":   "chapter",
+		"dimensions": []map[string]any{
+			{"dimension": "consistency", "score": 85, "comment": "基本一致"},
+			{"dimension": "character", "score": 82, "comment": "人设稳定"},
+			{"dimension": "pacing", "score": 78},
+			{"dimension": "continuity", "score": 84, "comment": "连贯"},
+			{"dimension": "foreshadow", "score": 80, "comment": "正常"},
+			{"dimension": "hook", "score": 76, "comment": "钩子一般"},
+			{"dimension": "aesthetic", "score": 81, "comment": "语言基本成立"},
+		},
+		"issues":  []map[string]any{},
+		"verdict": "accept",
+		"summary": "ok",
+	})
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+
+	if _, err := tool.Execute(context.Background(), args); err == nil || !strings.Contains(err.Error(), "dimension comment is required: pacing") {
+		t.Fatalf("expected dimension comment validation error, got %v", err)
+	}
+}
+
 // TestSaveReviewDerivesVerdictFromScore 验证：verdict 由 score 确定性推导，模型给的
 // 不一致 verdict（如 score=85 却填 warning）不再报错，而是被覆写成正确值（pass）。
 // 防回归 issue：弱模型 score/verdict 打架曾导致 save_review 反复失败。

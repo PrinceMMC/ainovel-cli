@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/voocel/agentcore/schema"
@@ -67,17 +68,19 @@ func (t *SaveArcSummaryTool) Execute(_ context.Context, args json.RawMessage) (j
 		Summary            string                     `json:"summary"`
 		KeyEvents          []string                   `json:"key_events"`
 		CharacterSnapshots []domain.CharacterSnapshot `json:"character_snapshots"`
-		StyleRules         *struct {
-			Prose    []string                `json:"prose"`
-			Dialogue []domain.CharacterVoice `json:"dialogue"`
-			Taboos   []string                `json:"taboos"`
-		} `json:"style_rules"`
+		StyleRules         *arcSummaryStyleRules      `json:"style_rules"`
 	}
 	if err := json.Unmarshal(args, &a); err != nil {
+		if strings.Contains(err.Error(), "style_rules.dialogue") {
+			return nil, fmt.Errorf("invalid args: style_rules.dialogue must be an array of objects {name, rules}, not strings: %w: %w", errs.ErrToolArgs, err)
+		}
 		return nil, fmt.Errorf("invalid args: %w: %w", errs.ErrToolArgs, err)
 	}
 	if a.Volume <= 0 || a.Arc <= 0 {
 		return nil, fmt.Errorf("volume and arc must be > 0: %w", errs.ErrToolArgs)
+	}
+	if err := validateArcSummaryStyleRules(a.StyleRules); err != nil {
+		return nil, err
 	}
 
 	arcSummary := domain.ArcSummary{
@@ -130,4 +133,36 @@ func (t *SaveArcSummaryTool) Execute(_ context.Context, args json.RawMessage) (j
 		"snapshots":         len(a.CharacterSnapshots),
 		"style_rules_saved": styleRulesSaved,
 	})
+}
+
+type arcSummaryStyleRules struct {
+	Prose    []string                `json:"prose"`
+	Dialogue []domain.CharacterVoice `json:"dialogue"`
+	Taboos   []string                `json:"taboos"`
+}
+
+func validateArcSummaryStyleRules(rules *arcSummaryStyleRules) error {
+	if rules == nil {
+		return nil
+	}
+	if len(rules.Prose) == 0 {
+		return fmt.Errorf("style_rules.prose is required when style_rules is provided: %w", errs.ErrToolArgs)
+	}
+	if len(rules.Dialogue) == 0 {
+		return fmt.Errorf("style_rules.dialogue is required when style_rules is provided; expected array of objects {name, rules}: %w", errs.ErrToolArgs)
+	}
+	for i, voice := range rules.Dialogue {
+		if strings.TrimSpace(voice.Name) == "" {
+			return fmt.Errorf("style_rules.dialogue[%d].name is required: %w", i, errs.ErrToolArgs)
+		}
+		if len(voice.Rules) == 0 {
+			return fmt.Errorf("style_rules.dialogue[%d].rules is required: %w", i, errs.ErrToolArgs)
+		}
+		for j, rule := range voice.Rules {
+			if strings.TrimSpace(rule) == "" {
+				return fmt.Errorf("style_rules.dialogue[%d].rules[%d] is empty: %w", i, j, errs.ErrToolArgs)
+			}
+		}
+	}
+	return nil
 }
