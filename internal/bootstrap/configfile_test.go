@@ -108,6 +108,65 @@ func TestLoadConfig_ValidMergeWorks(t *testing.T) {
 	}
 }
 
+func TestMergeConfig_ProviderExtraFields(t *testing.T) {
+	base := Config{
+		Provider:  "openrouter",
+		ModelName: "google/gemini-2.5-flash",
+		Providers: map[string]ProviderConfig{
+			"openrouter": {
+				APIKey: "sk-test-123456",
+				ExtraBody: map[string]any{
+					"temperature": 0.8,
+				},
+				Extra: map[string]any{
+					"user_agent": "base-client/1.0",
+				},
+			},
+		},
+	}
+	overlay := Config{
+		Providers: map[string]ProviderConfig{
+			"openrouter": {
+				BaseURL: "https://proxy.example.com/v1",
+				ExtraBody: map[string]any{
+					"min_p": 0.05,
+				},
+				Extra: map[string]any{
+					"user_agent": "override-client/1.0",
+					"headers": map[string]any{
+						"X-Custom-Client": "ainovel",
+					},
+				},
+			},
+		},
+	}
+
+	cfg := mergeConfig(base, overlay)
+	pc := cfg.Providers["openrouter"]
+	if pc.APIKey != "sk-test-123456" {
+		t.Fatalf("APIKey = %q, want inherited key", pc.APIKey)
+	}
+	if pc.BaseURL != "https://proxy.example.com/v1" {
+		t.Fatalf("BaseURL = %q, want overlay URL", pc.BaseURL)
+	}
+	if _, ok := pc.ExtraBody["temperature"]; ok {
+		t.Fatalf("ExtraBody should be replaced by overlay, got %#v", pc.ExtraBody)
+	}
+	if got := pc.ExtraBody["min_p"]; got != 0.05 {
+		t.Fatalf("ExtraBody[min_p] = %#v, want 0.05", got)
+	}
+	if got := pc.Extra["user_agent"]; got != "override-client/1.0" {
+		t.Fatalf("Extra[user_agent] = %#v, want override-client/1.0", got)
+	}
+	headers, ok := pc.Extra["headers"].(map[string]any)
+	if !ok {
+		t.Fatalf("Extra[headers] missing or invalid: %#v", pc.Extra["headers"])
+	}
+	if got := headers["X-Custom-Client"]; got != "ainovel" {
+		t.Fatalf("Extra.headers[X-Custom-Client] = %#v, want ainovel", got)
+	}
+}
+
 // 根因 2（issue #37 核心复现）：项目级覆盖 provider 但没声明对应 providers 凭证，
 // ValidateBase 必须报 config 错误（而非放行后在更深处崩溃）。
 func TestValidateBase_ProviderOverrideWithoutCredentials(t *testing.T) {

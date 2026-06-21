@@ -55,6 +55,9 @@ type ProviderConfig struct {
 	// presence_penalty，或厂商特有键如 nvidia 开 think 的 chat_template_kwargs）。
 	// OpenAI 兼容端逐字并入请求体（即 extra_body 约定）；值由用户自负其责。
 	ExtraBody map[string]any `json:"extra_body,omitempty"`
+	// Extra 透传给 provider 级配置（litellm.ProviderConfig.Extra），用于 HTTP
+	// headers、user_agent、anthropic_beta 等客户端/传输层选项。
+	Extra map[string]any `json:"extra,omitempty"`
 }
 
 // RequiresAPIKey 返回该 provider 是否必须显式配置 api_key。

@@ -238,7 +238,11 @@ ainovel-cli
     "openrouter": {
       "api_key": "sk-or-v1-xxx",
       "base_url": "https://openrouter.ai/api/v1",
-      "models": ["google/gemini-2.5-flash", "google/gemini-2.5-pro"]
+      "models": ["google/gemini-2.5-flash", "google/gemini-2.5-pro"],
+      "extra": {
+        "user_agent": "my-client/1.0",
+        "headers": { "X-Custom-Client": "my-client" }
+      }
     }
   },
   "style": "default"
@@ -263,6 +267,8 @@ ainovel-cli
 > ⚠️ `provider`（以及 `roles.*.provider`）的值是 `providers` 里的 **key 名**——一根指针，不是协议名。项目级若把 `provider` 切到一个全局 `providers` 里不存在的账号，必须在项目级同时补上该账号的凭证（`api_key` / `base_url`），否则启动会报“未配置凭证”。
 
 `providers.<name>.models` 为可选字段，用于声明该 provider 下允许在 TUI `/model` 面板中切换的模型列表；如果未配置，系统会回退为当前配置文件里已经出现过的该 provider 模型。
+
+`providers.<name>.extra` 为 provider 级配置，会传给底层 HTTP 客户端，适合配置 `user_agent`、`headers`、`anthropic_beta` 等代理识别字段；`providers.<name>.extra_body` 才是请求体扩展参数，两者不要混用。
 
 ## 诊断报告
 
@@ -368,13 +374,42 @@ output/novel/meta/simulation_profile.json
   "providers": {
     "my-proxy": {
       "type": "openai",
-      "base_url": "https://proxy.example.com/v1"
+      "base_url": "https://proxy.example.com/v1",
+      "extra": {
+        "user_agent": "my-client/1.0",
+        "headers": { "X-Custom-Client": "my-client" }
+      }
     }
   }
 }
 ```
 
 支持的 Provider：`openrouter` / `anthropic` / `gemini` / `openai` / `deepseek` / `qwen` / `glm` / `grok` / `ollama` / `bedrock` 及任意自定义代理。
+
+如果代理是 Anthropic 协议，并要求客户端识别字段，`type` 应设为 `anthropic`，`anthropic_beta` 放在 `extra` 顶层，Stainless 等 HTTP 头放在 `extra.headers` 中：
+
+```jsonc
+{
+  "provider": "claude-proxy",
+  "model": "claude-sonnet-4-6",
+  "providers": {
+    "claude-proxy": {
+      "type": "anthropic",
+      "api_key": "sk-xxx",
+      "base_url": "https://proxy.example.com",
+      "extra": {
+        "user_agent": "claude-code/2.1.183",
+        "anthropic_beta": "claude-code-20250219",
+        "headers": {
+          "X-Stainless-Lang": "js",
+          "X-Stainless-Package-Version": "0.94.0",
+          "X-Stainless-Runtime": "node"
+        }
+      }
+    }
+  }
+}
+```
 
 关于 `api_key`：
 

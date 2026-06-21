@@ -162,6 +162,12 @@ func mergeConfig(base, overlay Config) Config {
 			if len(v.Models) > 0 {
 				existing.Models = append([]string(nil), v.Models...)
 			}
+			if len(v.ExtraBody) > 0 {
+				existing.ExtraBody = cloneMap(v.ExtraBody)
+			}
+			if len(v.Extra) > 0 {
+				existing.Extra = cloneMap(v.Extra)
+			}
 			base.Providers[k] = existing
 		}
 	}
@@ -195,6 +201,17 @@ func mergeConfig(base, overlay Config) Config {
 	}
 
 	return base
+}
+
+func cloneMap(m map[string]any) map[string]any {
+	if len(m) == 0 {
+		return nil
+	}
+	c := make(map[string]any, len(m))
+	for k, v := range m {
+		c[k] = v
+	}
+	return c
 }
 
 // stripJSONComments 去除 JSON 中的 // 行注释，跟踪引号状态避免误删字符串内容。
