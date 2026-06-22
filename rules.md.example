@@ -12,7 +12,7 @@
 genre: xianxia
 
 # 章节字数范围（min-max）。偏差 < 20% 报 warning；≥ 20% 报 error。
-chapter_words: 3000-6000
+chapter_words: 3000-12000
 
 # 字符/符号黑名单。出现 ≥ 1 次即 error。
 # 注意：中文双破折号是两个 em-dash 字符；写 "——" 匹配双个，写 "—" 匹配单个。

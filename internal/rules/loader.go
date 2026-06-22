@@ -174,7 +174,7 @@ const homeRulesReadme = `这里放全局写作偏好，跨所有书生效。
 可在文件顶部加一段 YAML front matter——commit_chapter 会逐字计数、强制报错：
 
     ---
-    chapter_words: 3000-6000          # 章节字数范围
+    chapter_words: 3000-12000         # 章节字数范围
     forbidden_phrases: ["某种程度上"]  # 禁用短语，出现即报错
     fatigue_words: {不禁: 1}           # 疲劳词，每章超阈值告警
     ---
