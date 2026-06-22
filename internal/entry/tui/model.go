@@ -91,6 +91,7 @@ type Model struct {
 	hoverActive    bool
 	mode           appMode
 	startupMode    startupMode
+	docsDir        string // /docs 设置的设定文档目录；共创前读取其下 md 注入系统提示
 	cocreateSeq    int
 	reportSeq      int
 	err            error
@@ -652,7 +653,7 @@ func (m *Model) sendCoCreate() tea.Cmd {
 	m.resizeTextarea()
 	m.textarea.Placeholder = placeholderForCoCreate(m.cocreate)
 	m.textarea.Blur()
-	return runCoCreate(m.runtime, m.cocreate)
+	return runCoCreate(m.runtime, m.cocreate, m.docsDir)
 }
 
 func (m Model) handleCoCreateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {

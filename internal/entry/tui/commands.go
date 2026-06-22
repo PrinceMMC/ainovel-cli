@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -210,6 +212,65 @@ func commandRegistryInstance() commandRegistry {
 				})
 				m.refreshEventViewport()
 				return m, cmd
+			},
+		},
+		{
+			Name:        "docs",
+			Group:       "system",
+			Usage:       "/docs [path]",
+			Description: "设置设定文档目录，共创时读取其下 md 注入提示",
+			AutoExecute: true,
+			Run: func(m Model, args []string) (tea.Model, tea.Cmd) {
+				// 无参数：显示当前设定目录状态
+				if len(args) == 0 {
+					if m.docsDir == "" {
+						m.applyEvent(host.Event{
+							Time: time.Now(), Category: "SYSTEM", Summary: "未设置设定文档目录。用法：/docs <目录路径>，共创前会读取该目录下的 小说总纲.md / 世界设定.md / 人物设定.md / 剧情规划.md / 写作规则.md", Level: "info",
+						})
+					} else {
+						m.applyEvent(host.Event{
+							Time: time.Now(), Category: "SYSTEM", Summary: "当前设定文档目录：" + m.docsDir, Level: "info",
+						})
+					}
+					m.refreshEventViewport()
+					return m, nil
+				}
+				raw := strings.TrimSpace(args[0])
+				if raw == "" {
+					m.applyEvent(host.Event{
+						Time: time.Now(), Category: "ERROR", Summary: "目录路径不能为空", Level: "error",
+					})
+					m.refreshEventViewport()
+					return m, nil
+				}
+				// 相对路径基于 cwd 解析（与 output 目录语义一致）
+				dir := raw
+				if !filepath.IsAbs(dir) {
+					if abs, err := filepath.Abs(dir); err == nil {
+						dir = abs
+					}
+				}
+				info, err := os.Stat(dir)
+				if err != nil {
+					m.applyEvent(host.Event{
+						Time: time.Now(), Category: "ERROR", Summary: "设定文档目录不存在：" + raw, Level: "error",
+					})
+					m.refreshEventViewport()
+					return m, nil
+				}
+				if !info.IsDir() {
+					m.applyEvent(host.Event{
+						Time: time.Now(), Category: "ERROR", Summary: "路径不是目录：" + raw, Level: "error",
+					})
+					m.refreshEventViewport()
+					return m, nil
+				}
+				m.docsDir = dir
+				m.applyEvent(host.Event{
+					Time: time.Now(), Category: "SYSTEM", Summary: "已设置设定文档目录：" + dir + "（共创时会读取其下约定的 md 文件）", Level: "info",
+				})
+				m.refreshEventViewport()
+				return m, nil
 			},
 		},
 	})

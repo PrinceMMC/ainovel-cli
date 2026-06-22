@@ -937,14 +937,17 @@ func (h *Host) ReplayQueue(afterSeq int64) ([]domain.RuntimeQueueItem, error) {
 // ── 共创 ──
 
 // CoCreateStream 冷启动共创：从零澄清需求，产出整本书的创作指令。
-func (h *Host) CoCreateStream(ctx context.Context, history []CoCreateMessage, onProgress func(kind, text string)) (CoCreateReply, error) {
-	return coCreateStream(ctx, h.models, h.store.Sessions, coCreateSystemPrompt, history, onProgress)
+// docsDir 非空时，先将设定文档存入 store，再在系统提示中注入摘要，
+// 让共创基于用户预先写好的设定澄清与整理；为空则行为与改动前一致。
+func (h *Host) CoCreateStream(ctx context.Context, history []CoCreateMessage, docsDir string, onProgress func(kind, text string)) (CoCreateReply, error) {
+	return coCreateStream(ctx, h.models, h.store.Sessions, coCreateSystemPromptWithDocs(docsDir, h.store), history, onProgress)
 }
 
 // StageCoCreateStream 阶段共创：在已写内容的基础上规划后续方向。
-// 系统提示 = 阶段 prompt + 当前故事状态摘要，让助手知道"已经写了什么"。
-func (h *Host) StageCoCreateStream(ctx context.Context, history []CoCreateMessage, onProgress func(kind, text string)) (CoCreateReply, error) {
-	return coCreateStream(ctx, h.models, h.store.Sessions, stageSystemPrompt(h.store), history, onProgress)
+// 系统提示 = 阶段 prompt + 当前故事状态摘要 + （可选）用户设定文档摘要。
+// docsDir 非空时，先将设定文档存入 store，再在提示中注入摘要。
+func (h *Host) StageCoCreateStream(ctx context.Context, history []CoCreateMessage, docsDir string, onProgress func(kind, text string)) (CoCreateReply, error) {
+	return coCreateStream(ctx, h.models, h.store.Sessions, stageSystemPromptWithDocs(h.store, docsDir), history, onProgress)
 }
 
 // stagePlanPrefix 把共创产出的"后续方向 brief"包装成一条阶段规划干预，交 Coordinator 裁定。

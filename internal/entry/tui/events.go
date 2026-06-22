@@ -116,16 +116,21 @@ func startRuntime(rt *host.Host, plan startup.Plan) tea.Cmd {
 	}
 }
 
-func runCoCreate(rt *host.Host, state *cocreateState) tea.Cmd {
+func runCoCreate(rt *host.Host, state *cocreateState, docsDir string) tea.Cmd {
 	history := state.session.History()
 	ctx, cancel := context.WithCancel(context.Background())
 	state.cancel = cancel
 	state.deltaCh = make(chan cocreateStreamItem, 64)
 	state.doneCh = make(chan cocreateDoneMsg, 1)
 	// 阶段共创带故事状态摘要、产出"后续方向 brief"；冷启动从零澄清需求。两者签名一致。
-	stream := rt.CoCreateStream
+	// docsDir 非空时，共创系统提示会追加用户预设的设定文档内容。
+	stream := func(ctx context.Context, history []host.CoCreateMessage, onProgress func(kind, text string)) (host.CoCreateReply, error) {
+		return rt.CoCreateStream(ctx, history, docsDir, onProgress)
+	}
 	if state.stage {
-		stream = rt.StageCoCreateStream
+		stream = func(ctx context.Context, history []host.CoCreateMessage, onProgress func(kind, text string)) (host.CoCreateReply, error) {
+			return rt.StageCoCreateStream(ctx, history, docsDir, onProgress)
+		}
 	}
 	start := func() tea.Msg {
 		go func() {
